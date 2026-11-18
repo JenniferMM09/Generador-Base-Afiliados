@@ -112,6 +112,7 @@
       <div class="summary"><div class="metric"><strong id="summary-rows">—</strong><span>registros que se exportarán</span></div><div class="metric"><strong id="summary-columns">—</strong><span>columnas seleccionadas</span></div><div class="metric"><strong id="summary-filters">—</strong><span>filtros aplicados</span></div></div>
       <div class="notice">Excel admite hasta 1.048.576 filas por hoja. El archivo se descargará cuando termine de prepararse.</div>
       <ol class="order-list" id="order-list"></ol>
+      <div class="toolbar"><label for="output-file-name"><strong>Nombre del archivo final</strong></label><input id="output-file-name" type="text" maxlength="100" placeholder="Base de afiliados filtrada" autocomplete="off"><span class="count">Se agregará la extensión .xlsx</span></div>
       <div class="actions"><button class="secondary" id="back-to-output" type="button">Volver a columnas</button><button id="export-button" type="button">Descargar Excel filtrado</button></div>
     </section>
     <footer>La herramienta requiere conexión a internet al abrirse para cargar el lector de Excel. Después, el contenido del archivo permanece local.</footer>
@@ -235,6 +236,7 @@
   function updateStep(step) { document.querySelectorAll('.step').forEach(function (el) { const number = Number(el.dataset.step); el.classList.toggle('active', number === step); el.classList.toggle('done', number < step); }); }
   function openPanel(id, step) { document.querySelectorAll('main > .panel').forEach(function (panel) { panel.classList.add('hidden'); }); $(id).classList.remove('hidden'); updateStep(step); window.scrollTo({ top:0, behavior:'smooth' }); }
   function safeName(name) { return name.replace(/\.[^.]+$/, '').replace(/[^\w\-]+/g, '_').slice(0, 70) || 'resultado'; }
+  function defaultDownloadName() { return state.fileName.replace(/\.[^.]+$/, '') + '_filtrado'; }
   function columnLabel(column) { return column === CLIENT_NAME_COLUMN ? 'Nombre Cliente' : state.headers[column]; }
   function parseColumn(value) { return value === CLIENT_NAME_COLUMN ? CLIENT_NAME_COLUMN : Number(value); }
   function normalizedHeader(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
@@ -304,7 +306,7 @@
     if (message.type === 'loaded') { state.headers = message.headers; showStatus(format.format(message.rowCount) + ' registros y ' + message.headers.length + ' columnas leídos correctamente.', 'ok', false); renderColumns('filter'); openPanel('#columns-panel', 2); }
     if (message.type === 'values') renderValueOptions(message.values, message.total, message.truncated);
     if (message.type === 'count') { state.matchCount = message.total; state.outputColumns = defaultOutputColumns(); state.outputOrder = state.outputColumns.slice(); $('#summary-rows').textContent = format.format(message.total); $('#summary-columns').textContent = state.outputColumns.length; $('#summary-filters').textContent = state.criteria.filter(function (criterion) { return criterion.values.length; }).length; renderColumns('output'); openPanel('#output-panel', 4); }
-    if (message.type === 'exported') { const blob = new Blob([message.buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = safeName(state.fileName) + '_filtrado.xlsx'; document.body.append(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 60000); $('#export-button').disabled = false; $('#export-button').textContent = 'Descargar Excel filtrado'; alert('Se descargó el archivo con ' + format.format(message.total) + ' registros.'); }
+    if (message.type === 'exported') { const blob = new Blob([message.buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = safeName($('#output-file-name').value || defaultDownloadName()) + '.xlsx'; document.body.append(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 60000); $('#export-button').disabled = false; $('#export-button').textContent = 'Descargar Excel filtrado'; alert('Se descargó el archivo con ' + format.format(message.total) + ' registros.'); }
     if (message.type === 'error') { $('#export-button').disabled = false; $('#export-button').textContent = 'Descargar Excel filtrado'; showStatus(message.message, 'error', false); $('#load-panel').classList.remove('hidden'); window.scrollTo({ top:0, behavior:'smooth' }); }
   }
   function loadFile(file) { if (!file) return; if (!/\.(xlsx|xls|csv)$/i.test(file.name)) { showStatus('Seleccione un archivo .xlsx, .xls o .csv.', 'error', false); return; } if (!window.Worker) { showStatus('Este navegador no admite el procesamiento requerido.', 'error', false); return; }
@@ -321,7 +323,7 @@
   $('#previous-filter').onclick = function () { if (state.filterIndex > 0) { state.filterIndex--; configureCurrentFilter(); } };
   $('#next-filter').onclick = function () { if (state.filterIndex === state.filterColumns.length - 1) finishFilters(); else { state.filterIndex++; configureCurrentFilter(); } };
   $('#back-to-values').onclick = function () { state.filterIndex = state.filterColumns.length - 1; openPanel('#values-panel', 3); configureCurrentFilter(); };
-  $('#to-order').onclick = function () { state.outputOrder = state.outputColumns.slice(); $('#summary-columns').textContent = state.outputOrder.length; renderOrder(); openPanel('#order-panel', 5); };
+  $('#to-order').onclick = function () { state.outputOrder = state.outputColumns.slice(); $('#summary-columns').textContent = state.outputOrder.length; if (!$('#output-file-name').value) $('#output-file-name').value = defaultDownloadName(); renderOrder(); openPanel('#order-panel', 5); };
   $('#back-to-output').onclick = function () { openPanel('#output-panel', 4); };
   $('#export-button').onclick = function () { $('#export-button').disabled = true; $('#export-button').textContent = 'Preparando archivo…'; state.worker.postMessage({ type:'export', criteria:state.criteria, columns:state.outputOrder }); };
   </script>
