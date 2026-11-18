@@ -5,44 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Generador de base de afiliados</title>
   <style>
-    :root { --ink:#182235; --muted:#62708a; --line:#dce3ee; --paper:#fff; --soft:#f5f8fc; --blue:#165dba; --blue-dark:#104987; --green:#097658; --danger:#b3273b; }
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+    :root { --ink:#16475d; --muted:#5d7e8a; --line:#b8dfe1; --paper:#fffefa; --soft:#edf9f7; --blue:#1598b4; --blue-dark:#087995; --green:#0b967d; --coral:#e76b5c; --danger:#c44d5a; }
     * { box-sizing:border-box; }
-    body { margin:0; background:#f2f5fa; color:var(--ink); font:15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    header { background:linear-gradient(120deg,#102d57,#176fbd); color:white; padding:32px max(24px,calc((100% - 1180px)/2)); }
-    h1 { margin:0; font-size:clamp(25px,4vw,34px); letter-spacing:-.025em; }
-    header p { margin:7px 0 0; opacity:.88; max-width:720px; }
+    body { margin:0; background:#eaf6f5; color:var(--ink); font:16px/1.45 Nunito, "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif; }
+    header { position:relative; overflow:hidden; background:linear-gradient(118deg,#147e9e 0%,#22a7bb 62%,#60c5cd 100%); color:white; padding:38px max(24px,calc((100% - 1180px)/2)); }
+    header::after { content:""; position:absolute; width:380px; height:380px; right:-135px; top:-255px; border:30px dotted rgba(255,255,255,.16); border-radius:50%; transform:rotate(21deg); }
+    h1 { position:relative; z-index:1; margin:0; font-size:clamp(28px,4vw,38px); font-weight:900; letter-spacing:-.035em; }
+    header p { position:relative; z-index:1; margin:8px 0 0; max-width:720px; font-size:17px; font-weight:700; opacity:.95; }
     main { width:min(1180px,calc(100% - 36px)); margin:28px auto 64px; }
     .steps { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:22px; }
-    .step { min-height:57px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#e9eef6; color:#6c7890; font-size:12px; font-weight:650; }
+    .step { min-height:61px; padding:11px 13px; border:2px solid #d7eaeb; border-radius:17px; background:#f8ffff; color:#6c8791; font-size:12px; font-weight:800; }
     .step b { display:block; margin-bottom:2px; font-size:12px; }
-    .step.active { border-color:#7daee4; background:#e9f3ff; color:var(--blue-dark); }
-    .step.done { border-color:#94d2bf; background:#eefbf6; color:var(--green); }
-    .panel { background:var(--paper); border:1px solid var(--line); border-radius:15px; padding:clamp(20px,4vw,32px); box-shadow:0 7px 24px rgba(23,48,84,.06); }
+    .step.active { border-color:#55c3cf; background:#dff6f4; color:#087b94; box-shadow:0 5px 0 rgba(10,139,160,.08); }
+    .step.done { border-color:#80d5c3; background:#e7faf3; color:var(--green); }
+    .panel { background:var(--paper); border:1px solid #cce6e5; border-radius:25px; padding:clamp(20px,4vw,32px); box-shadow:0 11px 28px rgba(30,119,131,.09); }
     .panel + .panel { margin-top:18px; }
-    h2 { margin:0 0 6px; font-size:23px; letter-spacing:-.02em; }
+    h2 { margin:0 0 6px; font-size:25px; font-weight:900; letter-spacing:-.03em; }
     h3 { margin:0; font-size:16px; }
     .lead, .hint { color:var(--muted); margin:0 0 20px; }
     .hint { font-size:13px; }
     .hidden { display:none !important; }
-    .dropzone { position:relative; display:grid; place-items:center; min-height:210px; padding:28px; text-align:center; border:2px dashed #8aadd6; border-radius:13px; background:#f6faff; cursor:pointer; transition:.15s; }
-    .dropzone:hover, .dropzone.drag { border-color:var(--blue); background:#edf6ff; }
+    .dropzone { position:relative; display:grid; place-items:center; min-height:210px; padding:28px; text-align:center; border:3px dashed #71c9d0; border-radius:21px; background:#f1fbfa; cursor:pointer; transition:.15s; }
+    .dropzone:hover, .dropzone.drag { border-color:var(--coral); background:#fff9ef; }
     .dropzone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
     .dropzone strong { display:block; margin-bottom:5px; font-size:17px; }
-    .status { display:flex; align-items:center; gap:10px; margin-top:17px; padding:12px 14px; border-radius:9px; background:var(--soft); color:var(--muted); }
+    .status { display:flex; align-items:center; gap:10px; margin-top:17px; padding:12px 14px; border-radius:13px; background:var(--soft); color:var(--muted); }
     .status.error { background:#fff2f3; color:var(--danger); }
     .spinner { width:16px; height:16px; border:2px solid #b7c4d6; border-top-color:var(--blue); border-radius:50%; animation:spin .75s linear infinite; flex:0 0 auto; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .actions { display:flex; justify-content:space-between; gap:12px; margin-top:25px; flex-wrap:wrap; }
-    button { appearance:none; border:0; border-radius:8px; padding:10px 15px; color:white; background:var(--blue); font:inherit; font-weight:680; cursor:pointer; }
+    button { appearance:none; border:0; border-radius:100px; padding:10px 17px; color:white; background:var(--blue); font:inherit; font-weight:800; cursor:pointer; box-shadow:0 3px 0 rgba(5,97,120,.16); }
     button:hover { background:var(--blue-dark); } button:disabled { background:#aeb8c7; cursor:not-allowed; }
-    button.secondary { color:#26425f; background:#eaf0f7; } button.secondary:hover { background:#dae6f1; }
-    button.outline { color:var(--blue); background:white; border:1px solid #a9c7e8; }
+    button.secondary { color:#35717f; background:#dff2f1; } button.secondary:hover { background:#c9e9e5; }
+    button.outline { color:var(--blue); background:white; border:2px solid #9bd7dc; }
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:19px 0 13px; }
-    .toolbar input, .value-search { flex:1 1 230px; border:1px solid #b9c7d8; border-radius:8px; padding:10px 12px; color:var(--ink); font:inherit; }
+    .toolbar input, .value-search { flex:1 1 230px; border:2px solid #c1e1e2; border-radius:14px; padding:10px 12px; color:var(--ink); font:inherit; }
     .count { color:var(--muted); font-size:13px; margin-left:auto; }
     .check-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:7px 11px; max-height:470px; overflow:auto; padding:5px 3px 8px; }
-    .check { display:flex; gap:9px; align-items:center; padding:8px 9px; border:1px solid transparent; border-radius:7px; cursor:pointer; overflow:hidden; }
-    .check:hover { background:var(--soft); border-color:#e2e9f2; }
+    .check { display:flex; gap:9px; align-items:center; padding:8px 9px; border:1px solid transparent; border-radius:12px; cursor:pointer; overflow:hidden; }
+    .check:hover { background:var(--soft); border-color:#c9e8e6; }
     .check input { width:16px; height:16px; accent-color:var(--blue); flex:0 0 auto; }
     .check span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
     .empty { padding:24px; color:var(--muted); text-align:center; border:1px dashed var(--line); border-radius:10px; }
@@ -50,19 +52,19 @@
     .filter-progress { color:var(--blue); font-weight:700; font-size:13px; }
     .filter-column { color:var(--ink); font-size:22px; margin-top:2px; }
     .selected-values { display:flex; gap:6px; flex-wrap:wrap; min-height:29px; margin:10px 0 16px; }
-    .pill { display:flex; align-items:center; gap:6px; max-width:240px; padding:4px 7px 4px 9px; background:#e8f3ff; color:#16518e; border-radius:100px; font-size:12px; }
+    .pill { display:flex; align-items:center; gap:6px; max-width:240px; padding:4px 7px 4px 9px; background:#dff5f3; color:#087b94; border-radius:100px; font-size:12px; }
     .pill span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; } .pill button { padding:0; min-width:18px; background:transparent; color:#16518e; font-size:17px; line-height:1; }
-    .options { min-height:245px; max-height:370px; overflow:auto; border:1px solid var(--line); border-radius:9px; padding:4px; }
+    .options { min-height:245px; max-height:370px; overflow:auto; border:1px solid #c8e4e4; border-radius:15px; padding:4px; }
     .option { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:6px; cursor:pointer; }
     .option:hover { background:var(--soft); } .option input { accent-color:var(--blue); width:16px; height:16px; }
     .option span { overflow-wrap:anywhere; }
-    .notice { padding:12px 14px; border-left:4px solid #eea327; border-radius:5px; background:#fffaed; color:#785b19; font-size:13px; }
-    .order-list { list-style:none; padding:0; margin:17px 0 0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    .notice { padding:12px 14px; border-left:5px solid var(--coral); border-radius:11px; background:#fff5ee; color:#975a4f; font-size:13px; }
+    .order-list { list-style:none; padding:0; margin:17px 0 0; border:1px solid #c8e4e4; border-radius:16px; overflow:hidden; }
     .order-item { display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 10px 8px 15px; background:white; border-bottom:1px solid var(--line); }
     .order-item:last-child { border-bottom:0; } .order-index { width:24px; color:var(--muted); font-weight:700; font-size:13px; } .order-name { flex:1; overflow-wrap:anywhere; }
     .order-buttons { display:flex; gap:5px; } .order-buttons button { padding:5px 9px; font-size:15px; color:#31516f; background:#eaf0f7; }
     .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:18px 0; }
-    .metric { padding:15px; border-radius:10px; background:var(--soft); } .metric strong { display:block; font-size:22px; } .metric span { color:var(--muted); font-size:12px; }
+    .metric { padding:15px; border-radius:16px; background:var(--soft); } .metric strong { display:block; color:#087b94; font-size:22px; font-weight:900; } .metric span { color:var(--muted); font-size:12px; }
     footer { color:var(--muted); text-align:center; font-size:12px; margin:23px 0 0; }
     @media(max-width:720px) { .steps { grid-template-columns:1fr 1fr; } .steps .step:last-child { grid-column:span 2; } .summary { grid-template-columns:1fr; } .filter-top { display:block; } }
   </style>
