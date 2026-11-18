@@ -110,7 +110,7 @@
     <section class="panel hidden" id="order-panel">
       <h2>Organice el orden de las columnas</h2><p class="lead">Use las flechas para subir o bajar cada columna. El orden de esta lista será el orden del Excel final.</p>
       <div class="summary"><div class="metric"><strong id="summary-rows">—</strong><span>registros que se exportarán</span></div><div class="metric"><strong id="summary-columns">—</strong><span>columnas seleccionadas</span></div><div class="metric"><strong id="summary-filters">—</strong><span>filtros aplicados</span></div></div>
-      <div class="notice">Excel admite hasta 1.048.576 filas por hoja. El archivo se descargará cuando termine de prepararse.</div>
+      <div class="notice">La hoja final se llamará AFILIADOS. Los registros se ordenarán de A a Z por Tipo Usuario, Número Ident Usuario, Identificación Cliente y Contrato.</div>
       <ol class="order-list" id="order-list"></ol>
       <div class="toolbar"><label for="output-file-name"><strong>Nombre del archivo final</strong></label><input id="output-file-name" type="text" maxlength="100" placeholder="Base de afiliados filtrada" autocomplete="off"><span class="count">Se agregará la extensión .xlsx</span></div>
       <div class="actions"><button class="secondary" id="back-to-output" type="button">Volver a columnas</button><button id="export-button" type="button">Descargar Excel filtrado</button></div>
@@ -163,6 +163,19 @@
     }
     function outputHeader(column) { return column === CLIENT_NAME_COLUMN ? 'Nombre Cliente' : headers[column]; }
     function outputValue(row, column) { return column === CLIENT_NAME_COLUMN ? clientName(row) : resolveValue(row[column], sharedStrings); }
+    function normalizedHeader(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    function sortRows(rowsToSort) {
+      const fields = [['Tipo Usuario'], ['Número Ident Usuario', 'Número identificación usuario'], ['Identificación Cliente', 'Identificacion cliente'], ['Contrato']].map(function (names) {
+        return headers.findIndex(function (header) { return names.some(function (name) { return normalizedHeader(header) === normalizedHeader(name); }); });
+      }).filter(function (index) { return index !== -1; });
+      return rowsToSort.slice().sort(function (left, right) {
+        for (let index = 0; index < fields.length; index++) {
+          const comparison = resolveValue(left[fields[index]], sharedStrings).localeCompare(resolveValue(right[fields[index]], sharedStrings), 'es', { numeric:true, sensitivity:'base' });
+          if (comparison) return comparison;
+        }
+        return 0;
+      });
+    }
     async function readSheet(sheetIndex) {
       let sheetFinished = false, stringsFinished = false, streamFinished = false, sheetBuffer = '', stringBuffer = '', rawRows = [], strings = [];
       const finish = function () {
@@ -196,7 +209,7 @@
       const addText = function (name, content) { const entry = new fflate.ZipDeflate(name, { level:6 }); zip.add(entry); entry.push(fflate.strToU8(content), true); };
       addText('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
       addText('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
-      addText('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Resultado" sheetId="1" r:id="rId1"/></sheets></workbook>');
+      addText('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="AFILIADOS" sheetId="1" r:id="rId1"/></sheets></workbook>');
       addText('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
       const sheet = new fflate.ZipDeflate('xl/worksheets/sheet1.xml', { level:6 }); zip.add(sheet); sheet.push(fflate.strToU8('<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'), false);
       const writeRow = function (values, rowNumber) { let xml = '<row r="' + rowNumber + '">'; values.forEach(function (value, index) { xml += '<c r="' + columnLetter(index) + rowNumber + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEncode(value) + '</t></is></c>'; }); sheet.push(fflate.strToU8(xml + '</row>'), false); };
@@ -224,7 +237,7 @@
         }
         if (message.type === 'count') self.postMessage({ type:'count', total:currentRows(message.criteria).length });
         if (message.type === 'export') {
-          const selectedRows = currentRows(message.criteria);
+          const selectedRows = sortRows(currentRows(message.criteria));
           if (selectedRows.length > 1048575) throw new Error('El resultado tiene más filas de las permitidas por una hoja de Excel. Agregue más filtros.');
           exportWorkbook(selectedRows, message.columns);
         }
