@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generador de base de afiliados</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root { --ink:#182235; --muted:#62708a; --line:#dce3ee; --paper:#fff; --soft:#f5f8fc; --blue:#165dba; --blue-dark:#104987; --green:#097658; --danger:#b3273b; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f2f5fa; color:var(--ink); font:15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { background:linear-gradient(120deg,#102d57,#176fbd); color:white; padding:32px max(24px,calc((100% - 1180px)/2)); }
+    h1 { margin:0; font-size:clamp(25px,4vw,34px); letter-spacing:-.025em; }
+    header p { margin:7px 0 0; opacity:.88; max-width:720px; }
+    main { width:min(1180px,calc(100% - 36px)); margin:28px auto 64px; }
+    .steps { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:22px; }
+    .step { min-height:57px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#e9eef6; color:#6c7890; font-size:12px; font-weight:650; }
+    .step b { display:block; margin-bottom:2px; font-size:12px; }
+    .step.active { border-color:#7daee4; background:#e9f3ff; color:var(--blue-dark); }
+    .step.done { border-color:#94d2bf; background:#eefbf6; color:var(--green); }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:15px; padding:clamp(20px,4vw,32px); box-shadow:0 7px 24px rgba(23,48,84,.06); }
+    .panel + .panel { margin-top:18px; }
+    h2 { margin:0 0 6px; font-size:23px; letter-spacing:-.02em; }
+    h3 { margin:0; font-size:16px; }
+    .lead, .hint { color:var(--muted); margin:0 0 20px; }
+    .hint { font-size:13px; }
+    .hidden { display:none !important; }
+    .dropzone { position:relative; display:grid; place-items:center; min-height:210px; padding:28px; text-align:center; border:2px dashed #8aadd6; border-radius:13px; background:#f6faff; cursor:pointer; transition:.15s; }
+    .dropzone:hover, .dropzone.drag { border-color:var(--blue); background:#edf6ff; }
+    .dropzone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    .dropzone strong { display:block; margin-bottom:5px; font-size:17px; }
+    .status { display:flex; align-items:center; gap:10px; margin-top:17px; padding:12px 14px; border-radius:9px; background:var(--soft); color:var(--muted); }
+    .status.error { background:#fff2f3; color:var(--danger); }
+    .spinner { width:16px; height:16px; border:2px solid #b7c4d6; border-top-color:var(--blue); border-radius:50%; animation:spin .75s linear infinite; flex:0 0 auto; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .actions { display:flex; justify-content:space-between; gap:12px; margin-top:25px; flex-wrap:wrap; }
+    button { appearance:none; border:0; border-radius:8px; padding:10px 15px; color:white; background:var(--blue); font:inherit; font-weight:680; cursor:pointer; }
+    button:hover { background:var(--blue-dark); } button:disabled { background:#aeb8c7; cursor:not-allowed; }
+    button.secondary { color:#26425f; background:#eaf0f7; } button.secondary:hover { background:#dae6f1; }
+    button.outline { color:var(--blue); background:white; border:1px solid #a9c7e8; }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:19px 0 13px; }
+    .toolbar input, .value-search { flex:1 1 230px; border:1px solid #b9c7d8; border-radius:8px; padding:10px 12px; color:var(--ink); font:inherit; }
+    .count { color:var(--muted); font-size:13px; margin-left:auto; }
+    .check-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:7px 11px; max-height:470px; overflow:auto; padding:5px 3px 8px; }
+    .check { display:flex; gap:9px; align-items:center; padding:8px 9px; border:1px solid transparent; border-radius:7px; cursor:pointer; overflow:hidden; }
+    .check:hover { background:var(--soft); border-color:#e2e9f2; }
+    .check input { width:16px; height:16px; accent-color:var(--blue); flex:0 0 auto; }
+    .check span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .empty { padding:24px; color:var(--muted); text-align:center; border:1px dashed var(--line); border-radius:10px; }
+    .filter-top { display:flex; justify-content:space-between; gap:18px; align-items:start; margin-bottom:16px; }
+    .filter-progress { color:var(--blue); font-weight:700; font-size:13px; }
+    .filter-column { color:var(--ink); font-size:22px; margin-top:2px; }
+    .selected-values { display:flex; gap:6px; flex-wrap:wrap; min-height:29px; margin:10px 0 16px; }
+    .pill { display:flex; align-items:center; gap:6px; max-width:240px; padding:4px 7px 4px 9px; background:#e8f3ff; color:#16518e; border-radius:100px; font-size:12px; }
+    .pill span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; } .pill button { padding:0; min-width:18px; background:transparent; color:#16518e; font-size:17px; line-height:1; }
+    .options { min-height:245px; max-height:370px; overflow:auto; border:1px solid var(--line); border-radius:9px; padding:4px; }
+    .option { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:6px; cursor:pointer; }
+    .option:hover { background:var(--soft); } .option input { accent-color:var(--blue); width:16px; height:16px; }
+    .option span { overflow-wrap:anywhere; }
+    .notice { padding:12px 14px; border-left:4px solid #eea327; border-radius:5px; background:#fffaed; color:#785b19; font-size:13px; }
+    .order-list { list-style:none; padding:0; margin:17px 0 0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    .order-item { display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 10px 8px 15px; background:white; border-bottom:1px solid var(--line); }
+    .order-item:last-child { border-bottom:0; } .order-index { width:24px; color:var(--muted); font-weight:700; font-size:13px; } .order-name { flex:1; overflow-wrap:anywhere; }
+    .order-buttons { display:flex; gap:5px; } .order-buttons button { padding:5px 9px; font-size:15px; color:#31516f; background:#eaf0f7; }
+    .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:18px 0; }
+    .metric { padding:15px; border-radius:10px; background:var(--soft); } .metric strong { display:block; font-size:22px; } .metric span { color:var(--muted); font-size:12px; }
+    footer { color:var(--muted); text-align:center; font-size:12px; margin:23px 0 0; }
+    @media(max-width:720px) { .steps { grid-template-columns:1fr 1fr; } .steps .step:last-child { grid-column:span 2; } .summary { grid-template-columns:1fr; } .filter-top { display:block; } }
+  </style>
+</head>
+<body>
+  <header><h1>Generador de base de afiliados</h1><p>Filtre un archivo de Excel por los criterios que defina, elija las columnas finales y organícelas antes de descargar el resultado.</p></header>
+  <main>
+    <nav class="steps" aria-label="Pasos del proceso">
+      <div class="step active" data-step="1"><b>1. Cargar</b>Archivo y hoja</div><div class="step" data-step="2"><b>2. Criterios</b>Columnas para filtrar</div><div class="step" data-step="3"><b>3. Valores</b>Aplicar filtros</div><div class="step" data-step="4"><b>4. Salida</b>Columnas a mostrar</div><div class="step" data-step="5"><b>5. Orden</b>Exportar Excel</div>
+    </nav>
+
+    <section class="panel" id="load-panel">
+      <h2>Cargue el archivo</h2><p class="lead">Seleccione un archivo <strong>.xlsx</strong>, <strong>.xls</strong> o <strong>.csv</strong>. Los datos se procesan en este navegador y no se envían a ningún servidor.</p>
+      <label class="dropzone" id="dropzone"><input id="file-input" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"><div><strong>Arrastre el archivo aquí</strong><span>o haga clic para buscarlo en su equipo</span></div></label>
+      <div id="load-status" class="status hidden"></div>
+      <div id="sheet-choice" class="hidden"><div class="toolbar"><label for="sheet-select"><strong>Hoja que se va a usar</strong></label><select id="sheet-select"></select><button id="read-sheet" type="button">Leer hoja</button></div><p class="hint">Si el archivo es grande, esta operación puede tardar varios minutos y requerir bastante memoria del navegador.</p></div>
+    </section>
+
+    <section class="panel hidden" id="columns-panel">
+      <h2>Elija las columnas que desea filtrar</h2><p class="lead">Seleccione una o más columnas. A continuación definirá los valores permitidos para cada una, en el orden indicado.</p>
+      <div class="toolbar"><input id="filter-column-search" type="search" placeholder="Buscar una columna"><button class="secondary" id="all-filter-columns" type="button">Seleccionar visibles</button><button class="secondary" id="none-filter-columns" type="button">Limpiar</button><span class="count" id="filter-column-count"></span></div>
+      <div class="check-grid" id="filter-column-list"></div>
+      <div class="actions"><button class="secondary" id="restart-1" type="button">Cambiar archivo</button><button id="to-values" type="button" disabled>Elegir valores</button></div>
+    </section>
+
+    <section class="panel hidden" id="values-panel">
+      <div class="filter-top"><div><div class="filter-progress" id="filter-progress"></div><div class="filter-column" id="filter-column-name"></div></div><span class="count" id="matching-count"></span></div>
+      <p class="lead">Marque los valores que deben conservarse. La búsqueda no distingue mayúsculas, minúsculas ni acentos.</p>
+      <input id="value-search" class="value-search" type="search" placeholder="Buscar un valor…" autocomplete="off">
+      <div class="selected-values" id="selected-values"></div>
+      <div class="options" id="value-options"></div>
+      <div class="actions"><button class="secondary" id="previous-filter" type="button">Anterior</button><div><button class="outline" id="skip-filter" type="button">No limitar esta columna</button> <button id="next-filter" type="button">Siguiente</button></div></div>
+    </section>
+
+    <section class="panel hidden" id="output-panel">
+      <h2>Elija las columnas del Excel final</h2><p class="lead">Solo estas columnas aparecerán en el archivo descargado. El filtro se conserva aunque no incluya una columna en la salida.</p>
+      <div class="toolbar"><input id="output-column-search" type="search" placeholder="Buscar una columna"><button class="secondary" id="all-output-columns" type="button">Seleccionar visibles</button><button class="secondary" id="none-output-columns" type="button">Limpiar</button><span class="count" id="output-column-count"></span></div>
+      <div class="check-grid" id="output-column-list"></div>
+      <div class="actions"><button class="secondary" id="back-to-values" type="button">Volver a filtros</button><button id="to-order" type="button" disabled>Organizar columnas</button></div>
+    </section>
+
+    <section class="panel hidden" id="order-panel">
+      <h2>Organice el orden de las columnas</h2><p class="lead">Use las flechas para subir o bajar cada columna. El orden de esta lista será el orden del Excel final.</p>
+      <div class="summary"><div class="metric"><strong id="summary-rows">—</strong><span>registros que se exportarán</span></div><div class="metric"><strong id="summary-columns">—</strong><span>columnas seleccionadas</span></div><div class="metric"><strong id="summary-filters">—</strong><span>filtros aplicados</span></div></div>
+      <div class="notice">Excel admite hasta 1.048.576 filas por hoja. El archivo se descargará cuando termine de prepararse.</div>
+      <ol class="order-list" id="order-list"></ol>
+      <div class="actions"><button class="secondary" id="back-to-output" type="button">Volver a columnas</button><button id="export-button" type="button">Descargar Excel filtrado</button></div>
+    </section>
+    <footer>La herramienta requiere conexión a internet al abrirse para cargar el lector de Excel. Después, el contenido del archivo permanece local.</footer>
+  </main>
+
+  <script>
+  'use strict';
+  const state = { worker:null, fileName:'', headers:[], filterColumns:[], criteria:[], filterIndex:0, currentOptions:[], outputColumns:[], outputOrder:[], matchCount:0 };
+  const $ = (selector) => document.querySelector(selector);
+  const format = new Intl.NumberFormat('es-CO');
+
+  // El archivo se conserva dentro del Worker para mantener la interfaz disponible durante filtros y exportación.
+  function excelWorker() {
+    importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    let rows = [], headers = [], sheetNames = [], workbook = null;
+    const normalize = (value) => String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const matches = (row, criteria) => criteria.every(function (criterion) { return !criterion.values.length || criterion.values.indexOf(String(row[criterion.index] == null ? '' : row[criterion.index])) !== -1; });
+    function currentRows(criteria) { return rows.filter(function (row) { return matches(row, criteria); }); }
+    self.onmessage = function (event) {
+      const message = event.data;
+      try {
+        if (message.type === 'inspect') {
+          workbook = XLSX.read(message.buffer, { type:'array', cellDates:true, raw:false, dense:true });
+          sheetNames = workbook.SheetNames;
+          self.postMessage({ type:'sheets', sheets:sheetNames });
+        }
+        if (message.type === 'loadSheet') {
+          const sheet = workbook.Sheets[message.sheetName];
+          const reference = sheet && sheet['!ref'];
+          if (!reference) throw new Error('La hoja seleccionada no contiene datos.');
+          const range = XLSX.utils.decode_range(reference);
+          const valueAt = function (row, column) {
+            // SheetJS puede representar una hoja como matriz densa o como objeto. Se admiten ambos formatos.
+            const cell = Array.isArray(sheet) ? (sheet[row] && sheet[row][column]) : sheet[XLSX.utils.encode_cell({ r:row, c:column })];
+            if (!cell) return '';
+            if (cell.w != null) return String(cell.w);
+            if (cell.v == null) return '';
+            return cell.v instanceof Date ? cell.v.toLocaleDateString('es-CO') : String(cell.v);
+          };
+          const seen = Object.create(null);
+          headers = [];
+          for (let column = range.s.c; column <= range.e.c; column++) {
+            const index = column - range.s.c;
+            const value = valueAt(range.s.r, column);
+            let name = String(value == null ? '' : value).trim() || 'Columna ' + (index + 1);
+            const base = name; let number = 2;
+            while (seen[name]) name = base + ' (' + (number++) + ')';
+            seen[name] = true; headers.push(name);
+          }
+          rows = [];
+          for (let rowNumber = range.s.r + 1; rowNumber <= range.e.r; rowNumber++) {
+            const row = new Array(headers.length); let hasData = false;
+            for (let column = range.s.c; column <= range.e.c; column++) {
+              const value = valueAt(rowNumber, column); row[column - range.s.c] = value;
+              if (value !== '') hasData = true;
+            }
+            if (hasData) rows.push(row);
+          }
+          workbook = null;
+          self.postMessage({ type:'loaded', headers:headers, rowCount:rows.length });
+        }
+        if (message.type === 'values') {
+          const subset = currentRows(message.criteria);
+          const search = normalize(message.query || '');
+          const unique = new Map();
+          subset.forEach(function (row) { const value = String(row[message.column] == null ? '' : row[message.column]); if ((!search || normalize(value).indexOf(search) !== -1) && !unique.has(value)) unique.set(value, true); });
+          const values = Array.from(unique.keys()).sort(function (a,b) { return a.localeCompare(b, 'es', { numeric:true, sensitivity:'base' }); }).slice(0, 1000);
+          self.postMessage({ type:'values', values:values, total:subset.length, truncated:unique.size > values.length });
+        }
+        if (message.type === 'count') self.postMessage({ type:'count', total:currentRows(message.criteria).length });
+        if (message.type === 'export') {
+          const selectedRows = currentRows(message.criteria);
+          if (selectedRows.length > 1048575) throw new Error('El resultado tiene más filas de las permitidas por una hoja de Excel. Agregue más filtros.');
+          const data = [message.columns.map(function (column) { return headers[column]; })];
+          selectedRows.forEach(function (row) { data.push(message.columns.map(function (column) { return row[column] == null ? '' : row[column]; })); });
+          const output = XLSX.utils.book_new();
+          const worksheet = XLSX.utils.aoa_to_sheet(data);
+          worksheet['!cols'] = message.columns.map(function (column) { return { wch:Math.min(45, Math.max(12, String(headers[column]).length + 2)) }; });
+          XLSX.utils.book_append_sheet(output, worksheet, 'Resultado');
+          const buffer = XLSX.write(output, { bookType:'xlsx', type:'array', compression:true });
+          self.postMessage({ type:'exported', buffer:buffer, total:selectedRows.length }, [buffer]);
+        }
+      } catch (error) { self.postMessage({ type:'error', message:error && error.message ? error.message : 'No fue posible procesar el archivo.' }); }
+    };
+  }
+  function createWorker() { const source = "(" + excelWorker.toString() + ")()"; return new Worker(URL.createObjectURL(new Blob([source], { type:'application/javascript' }))); }
+  function showStatus(text, type, loading) { const el = $('#load-status'); el.className = 'status' + (type === 'error' ? ' error' : ''); el.innerHTML = (loading ? '<i class="spinner"></i>' : '') + '<span></span>'; el.querySelector('span').textContent = text; }
+  function updateStep(step) { document.querySelectorAll('.step').forEach(function (el) { const number = Number(el.dataset.step); el.classList.toggle('active', number === step); el.classList.toggle('done', number < step); }); }
+  function openPanel(id, step) { document.querySelectorAll('main > .panel').forEach(function (panel) { panel.classList.add('hidden'); }); $(id).classList.remove('hidden'); updateStep(step); window.scrollTo({ top:0, behavior:'smooth' }); }
+  function safeName(name) { return name.replace(/\.[^.]+$/, '').replace(/[^\w\-]+/g, '_').slice(0, 70) || 'resultado'; }
+  function renderColumns(kind) {
+    const filter = $(kind === 'filter' ? '#filter-column-search' : '#output-column-search').value.trim().toLocaleLowerCase('es');
+    const selected = kind === 'filter' ? state.filterColumns : state.outputColumns;
+    const target = $(kind === 'filter' ? '#filter-column-list' : '#output-column-list');
+    const visible = state.headers.map(function (header, index) { return { header:header, index:index }; }).filter(function (item) { return !filter || item.header.toLocaleLowerCase('es').includes(filter); });
+    target.replaceChildren();
+    visible.forEach(function (item) { const label = document.createElement('label'); label.className = 'check'; const check = document.createElement('input'); check.type = 'checkbox'; check.checked = selected.includes(item.index); check.dataset.column = item.index; const span = document.createElement('span'); span.textContent = item.header; label.append(check, span); target.append(label); });
+    const count = selected.length + ' seleccionada' + (selected.length === 1 ? '' : 's');
+    $(kind === 'filter' ? '#filter-column-count' : '#output-column-count').textContent = count;
+    $(kind === 'filter' ? '#to-values' : '#to-order').disabled = selected.length === 0;
+  }
+  function updateSelectedFromList(kind) { const target = $(kind === 'filter' ? '#filter-column-list' : '#output-column-list'); const selected = kind === 'filter' ? state.filterColumns : state.outputColumns; target.querySelectorAll('input').forEach(function (input) { const index = Number(input.dataset.column); const at = selected.indexOf(index); if (input.checked && at === -1) selected.push(index); if (!input.checked && at !== -1) selected.splice(at, 1); }); renderColumns(kind); }
+  function requestValues() { const column = state.filterColumns[state.filterIndex]; const before = state.criteria.slice(0, state.filterIndex); state.worker.postMessage({ type:'values', column:column, criteria:before, query:$('#value-search').value }); }
+  function renderValueOptions(values, total, truncated) {
+    state.currentOptions = values; const criterion = state.criteria[state.filterIndex]; const selected = criterion.values; const target = $('#value-options'); target.replaceChildren();
+    if (!values.length) target.innerHTML = '<div class="empty">No hay valores que coincidan con la búsqueda y los filtros anteriores.</div>';
+    values.forEach(function (value) { const label = document.createElement('label'); label.className = 'option'; const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selected.includes(value); input.value = value; const text = document.createElement('span'); text.textContent = value === '' ? '(vacío)' : value; label.append(input, text); target.append(label); });
+    $('#matching-count').textContent = format.format(total) + ' registros antes de este filtro' + (truncated ? ' · se muestran los primeros 1.000 valores' : '');
+    renderSelectedValues();
+  }
+  function renderSelectedValues() { const target = $('#selected-values'); target.replaceChildren(); const criterion = state.criteria[state.filterIndex]; if (!criterion.values.length) { target.innerHTML = '<span class="hint">Aún no se ha seleccionado ningún valor. Al continuar, esta columna no limitará el resultado.</span>'; return; }
+    criterion.values.forEach(function (value) { const pill = document.createElement('div'); pill.className = 'pill'; const text = document.createElement('span'); text.textContent = value === '' ? '(vacío)' : value; const remove = document.createElement('button'); remove.type = 'button'; remove.title = 'Quitar valor'; remove.textContent = '×'; remove.onclick = function () { criterion.values = criterion.values.filter(function (item) { return item !== value; }); renderValueOptions(state.currentOptions, Number($('#matching-count').textContent.replace(/\D/g, '')) || 0, false); }; pill.append(text, remove); target.append(pill); }); }
+  function configureCurrentFilter() { const column = state.filterColumns[state.filterIndex]; $('#filter-progress').textContent = 'FILTRO ' + (state.filterIndex + 1) + ' DE ' + state.filterColumns.length; $('#filter-column-name').textContent = state.headers[column]; $('#value-search').value = ''; $('#previous-filter').disabled = state.filterIndex === 0; $('#next-filter').textContent = state.filterIndex === state.filterColumns.length - 1 ? 'Continuar a columnas de salida' : 'Siguiente'; requestValues(); }
+  function finishFilters() { state.worker.postMessage({ type:'count', criteria:state.criteria }); }
+  function renderOrder() { const target = $('#order-list'); target.replaceChildren(); state.outputOrder.forEach(function (column, index) { const item = document.createElement('li'); item.className = 'order-item'; item.innerHTML = '<span class="order-index">' + (index + 1) + '</span><span class="order-name"></span><span class="order-buttons"></span>'; item.querySelector('.order-name').textContent = state.headers[column]; const buttons = item.querySelector('.order-buttons'); [['↑','Subir',index - 1], ['↓','Bajar',index + 1]].forEach(function (definition) { const button = document.createElement('button'); button.type = 'button'; button.textContent = definition[0]; button.title = definition[1]; button.disabled = definition[2] < 0 || definition[2] >= state.outputOrder.length; button.onclick = function () { const other = definition[2]; [state.outputOrder[index], state.outputOrder[other]] = [state.outputOrder[other], state.outputOrder[index]]; renderOrder(); }; buttons.append(button); }); target.append(item); }); }
+  function handleWorker(message) {
+    if (message.type === 'sheets') { showStatus('Archivo listo. Seleccione la hoja que desea usar.', 'ok', false); $('#sheet-select').replaceChildren(...message.sheets.map(function (name) { const option = document.createElement('option'); option.value = name; option.textContent = name; return option; })); $('#sheet-choice').classList.remove('hidden'); }
+    if (message.type === 'loaded') { state.headers = message.headers; showStatus(format.format(message.rowCount) + ' registros y ' + message.headers.length + ' columnas leídos correctamente.', 'ok', false); renderColumns('filter'); openPanel('#columns-panel', 2); }
+    if (message.type === 'values') renderValueOptions(message.values, message.total, message.truncated);
+    if (message.type === 'count') { state.matchCount = message.total; state.outputColumns = state.headers.map(function (_, index) { return index; }); state.outputOrder = state.outputColumns.slice(); $('#summary-rows').textContent = format.format(message.total); $('#summary-columns').textContent = state.outputColumns.length; $('#summary-filters').textContent = state.criteria.filter(function (criterion) { return criterion.values.length; }).length; renderColumns('output'); openPanel('#output-panel', 4); }
+    if (message.type === 'exported') { const blob = new Blob([message.buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = safeName(state.fileName) + '_filtrado.xlsx'; document.body.append(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 60000); $('#export-button').disabled = false; $('#export-button').textContent = 'Descargar Excel filtrado'; alert('Se descargó el archivo con ' + format.format(message.total) + ' registros.'); }
+    if (message.type === 'error') { $('#export-button').disabled = false; $('#export-button').textContent = 'Descargar Excel filtrado'; showStatus(message.message, 'error', false); $('#load-panel').classList.remove('hidden'); window.scrollTo({ top:0, behavior:'smooth' }); }
+  }
+  function loadFile(file) { if (!file) return; if (!/\.(xlsx|xls|csv)$/i.test(file.name)) { showStatus('Seleccione un archivo .xlsx, .xls o .csv.', 'error', false); return; } if (!window.Worker) { showStatus('Este navegador no admite el procesamiento requerido.', 'error', false); return; }
+    if (state.worker) state.worker.terminate(); state.worker = createWorker(); state.worker.onmessage = function (event) { handleWorker(event.data); }; state.worker.onerror = function () { showStatus('Ocurrió un error al iniciar el lector de Excel.', 'error', false); };
+    state.fileName = file.name; $('#sheet-choice').classList.add('hidden'); showStatus('Preparando “' + file.name + '”…', 'ok', true); file.arrayBuffer().then(function (buffer) { showStatus('Leyendo estructura del archivo. No cierre esta pestaña…', 'ok', true); state.worker.postMessage({ type:'inspect', buffer:buffer }, [buffer]); }).catch(function () { showStatus('No fue posible abrir el archivo seleccionado.', 'error', false); }); }
+  function setupSelectionButtons(kind) { const search = $(kind === 'filter' ? '#filter-column-search' : '#output-column-search'); const target = $(kind === 'filter' ? '#filter-column-list' : '#output-column-list'); const selected = function () { return kind === 'filter' ? state.filterColumns : state.outputColumns; }; search.addEventListener('input', function () { renderColumns(kind); }); target.addEventListener('change', function () { updateSelectedFromList(kind); }); $(kind === 'filter' ? '#all-filter-columns' : '#all-output-columns').onclick = function () { target.querySelectorAll('input').forEach(function (input) { const index = Number(input.dataset.column); if (!selected().includes(index)) selected().push(index); }); renderColumns(kind); }; $(kind === 'filter' ? '#none-filter-columns' : '#none-output-columns').onclick = function () { selected().splice(0); renderColumns(kind); }; }
+  const dropzone = $('#dropzone'); $('#file-input').addEventListener('change', function () { loadFile(this.files[0]); }); ['dragenter','dragover'].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.add('drag'); }); }); ['dragleave','drop'].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.remove('drag'); }); }); dropzone.addEventListener('drop', function (event) { loadFile(event.dataTransfer.files[0]); });
+  $('#read-sheet').onclick = function () { showStatus('Leyendo los registros de la hoja. En archivos grandes puede tardar varios minutos…', 'ok', true); state.worker.postMessage({ type:'loadSheet', sheetName:$('#sheet-select').value }); };
+  $('#restart-1').onclick = function () { openPanel('#load-panel', 1); }; setupSelectionButtons('filter'); setupSelectionButtons('output');
+  $('#to-values').onclick = function () { state.criteria = state.filterColumns.map(function (column) { return { index:column, values:[] }; }); state.filterIndex = 0; openPanel('#values-panel', 3); configureCurrentFilter(); };
+  $('#value-search').addEventListener('input', function () { clearTimeout(this.timer); this.timer = setTimeout(requestValues, 220); });
+  $('#value-options').addEventListener('change', function (event) { if (event.target.type !== 'checkbox') return; const selected = state.criteria[state.filterIndex].values; const value = event.target.value; const at = selected.indexOf(value); if (event.target.checked && at === -1) selected.push(value); if (!event.target.checked && at !== -1) selected.splice(at, 1); renderSelectedValues(); });
+  $('#skip-filter').onclick = function () { state.criteria[state.filterIndex].values = []; if (state.filterIndex === state.filterColumns.length - 1) finishFilters(); else { state.filterIndex++; configureCurrentFilter(); } };
+  $('#previous-filter').onclick = function () { if (state.filterIndex > 0) { state.filterIndex--; configureCurrentFilter(); } };
+  $('#next-filter').onclick = function () { if (state.filterIndex === state.filterColumns.length - 1) finishFilters(); else { state.filterIndex++; configureCurrentFilter(); } };
+  $('#back-to-values').onclick = function () { state.filterIndex = state.filterColumns.length - 1; openPanel('#values-panel', 3); configureCurrentFilter(); };
+  $('#to-order').onclick = function () { state.outputOrder = state.outputColumns.slice(); $('#summary-columns').textContent = state.outputOrder.length; renderOrder(); openPanel('#order-panel', 5); };
+  $('#back-to-output').onclick = function () { openPanel('#output-panel', 4); };
+  $('#export-button').onclick = function () { $('#export-button').disabled = true; $('#export-button').textContent = 'Preparando archivo…'; state.worker.postMessage({ type:'export', criteria:state.criteria, columns:state.outputOrder }); };
+  </script>
+</body>
+</html>
